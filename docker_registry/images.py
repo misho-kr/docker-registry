@@ -38,6 +38,19 @@ def require_completion(f):
         return f(*args, **kwargs)
     return wrapper
 
+def await_completion(f):
+    """Wait till the image push correctly finished."""
+    @functools.wraps(f)
+    def wrapper(*args, **kwargs):
+        logger.debug('is the image being uploaded ?')
+        wait_count = 50
+        sleep_time = 5
+        while wait_count > 0 and store.exists(store.image_mark_path(kwargs['image_id'])):
+            logger.info('Image is being uploaded, waiting [%d] for: %s' % (wait_count, kwargs['image_id']))
+            time.sleep(sleep_time)
+            wait_count -= 1
+        return f(*args, **kwargs)
+    return wrapper
 
 def set_cache_headers(f):
     """Returns HTTP headers suitable for caching."""
@@ -331,6 +344,7 @@ def load_checksums(image_id):
 @app.route('/v1/images/<image_id>/json', methods=['PUT'])
 @toolkit.requires_auth
 @toolkit.valid_image_id
+@await_completion
 def put_image_json(image_id):
     data = None
     try:
